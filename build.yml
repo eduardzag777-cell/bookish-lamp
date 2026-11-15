@@ -1,0 +1,519 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate project
+        run: |
+          set -e
+          mkdir -p app/src/main/res/raw app/src/main/res/layout app/src/main/res/values app/src/main/res/xml app/src/main/java/com/example/joke
+          cat > settings.gradle.kts <<'EOF_FILE'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "WallpaperJoke"
+          include(":app")
+          EOF_FILE
+          cat > build.gradle.kts <<'EOF_FILE'
+          plugins {
+              id("com.android.application") version "8.5.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+          }
+          EOF_FILE
+          cat > gradle.properties <<'EOF_FILE'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          kotlin.code.style=official
+          EOF_FILE
+          cat > app/build.gradle.kts <<'EOF_FILE'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+
+          android {
+              namespace = "com.example.joke"
+              compileSdk = 34
+
+              defaultConfig {
+                  applicationId = "com.example.joke"
+                  minSdk = 24
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+
+              buildTypes {
+                  release {
+                      isMinifyEnabled = false
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions {
+                  jvmTarget = "17"
+              }
+          }
+
+          dependencies {
+              implementation("androidx.core:core-ktx:1.12.0")
+              implementation("androidx.appcompat:appcompat:1.6.1")
+          }
+          EOF_FILE
+          cat > app/src/main/AndroidManifest.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+              <uses-permission android:name="android.permission.SET_WALLPAPER" />
+
+              <uses-feature
+                  android:name="android.software.live_wallpaper"
+                  android:required="false" />
+
+              <application
+                  android:allowBackup="true"
+                  android:label="@string/app_name"
+                  android:theme="@style/Theme.AppCompat.DayNight">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+
+                  <service
+                      android:name=".MusicService"
+                      android:exported="false"
+                      android:foregroundServiceType="mediaPlayback"
+                      android:stopWithTask="false" />
+
+                  <service
+                      android:name=".MyWallpaperService"
+                      android:exported="true"
+                      android:label="@string/wallpaper_label"
+                      android:permission="android.permission.BIND_WALLPAPER">
+                      <intent-filter>
+                          <action android:name="android.service.wallpaper.WallpaperService" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.service.wallpaper"
+                          android:resource="@xml/wallpaper" />
+                  </service>
+
+              </application>
+          </manifest>
+          EOF_FILE
+          cat > app/src/main/res/layout/activity_main.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:gravity="center"
+              android:orientation="vertical"
+              android:padding="24dp">
+
+              <TextView
+                  android:id="@+id/tvStatus"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="@string/status_active"
+                  android:textSize="24sp" />
+
+              <Button
+                  android:id="@+id/btnStopAll"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="24dp"
+                  android:text="@string/btn_stop_all" />
+          </LinearLayout>
+          EOF_FILE
+          cat > app/src/main/res/xml/wallpaper.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <wallpaper xmlns:android="http://schemas.android.com/apk/res/android"
+              android:description="@string/wallpaper_description" />
+          EOF_FILE
+          cat > app/src/main/res/values/strings.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">Шутка</string>
+              <string name="status_active">Шутка активна</string>
+              <string name="btn_stop_all">Выключить всё</string>
+              <string name="wallpaper_label">Шуточные обои</string>
+              <string name="wallpaper_description">Видео на весь экран</string>
+              <string name="channel_name">Музыка</string>
+              <string name="notification_title">Шутка активна</string>
+              <string name="notification_text">Музыка играет по кругу</string>
+              <string name="action_stop">Стоп</string>
+          </resources>
+          EOF_FILE
+          cat > app/src/main/java/com/example/joke/MainActivity.kt <<'EOF_FILE'
+          package com.example.joke
+
+          import android.Manifest
+          import android.app.WallpaperManager
+          import android.content.ComponentName
+          import android.content.Intent
+          import android.content.pm.PackageManager
+          import android.graphics.Bitmap
+          import android.media.MediaMetadataRetriever
+          import android.os.Build
+          import android.os.Bundle
+          import android.widget.Button
+          import androidx.activity.result.contract.ActivityResultContracts
+          import androidx.appcompat.app.AppCompatActivity
+          import androidx.core.content.ContextCompat
+
+          class MainActivity : AppCompatActivity() {
+
+              private val notificationPermissionLauncher =
+                  registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+                      startMusicAndWallpaper()
+                  }
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  setContentView(R.layout.activity_main)
+
+                  findViewById<Button>(R.id.btnStopAll).setOnClickListener { stopAll() }
+
+                  if (savedInstanceState == null) {
+                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                          ContextCompat.checkSelfPermission(
+                              this, Manifest.permission.POST_NOTIFICATIONS
+                          ) != PackageManager.PERMISSION_GRANTED
+                      ) {
+                          notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                      } else {
+                          startMusicAndWallpaper()
+                      }
+                  }
+              }
+
+              // Сначала музыка (пока приложение на экране), потом предпросмотр обоев
+              private fun startMusicAndWallpaper() {
+                  ContextCompat.startForegroundService(
+                      this,
+                      Intent(this, MusicService::class.java).setAction(MusicService.ACTION_START)
+                  )
+                  setupWallpaper()
+              }
+
+              private fun videoFrame(): Bitmap? {
+                  val retriever = MediaMetadataRetriever()
+                  return try {
+                      resources.openRawResourceFd(R.raw.video).use { afd ->
+                          retriever.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                      }
+                      retriever.getFrameAtTime(0)
+                  } catch (_: Throwable) {
+                      null
+                  } finally {
+                      try {
+                          retriever.release()
+                      } catch (_: Exception) {
+                      }
+                  }
+              }
+
+              private fun setupWallpaper() {
+                  val wm = WallpaperManager.getInstance(this)
+
+                  // Наши живые обои уже стоят — ничего не трогаем
+                  if (wm.wallpaperInfo?.packageName == packageName) return
+
+                  // Статичный кадр из видео ставится без диалога — запасной вариант
+                  try {
+                      videoFrame()?.let { wm.setBitmap(it) }
+                  } catch (_: Throwable) {
+                  }
+
+                  // Живые обои: только через системный предпросмотр (кнопка «Установить»)
+                  val component = ComponentName(this, MyWallpaperService::class.java)
+                  try {
+                      startActivity(
+                          Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER)
+                              .putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, component)
+                      )
+                  } catch (_: Exception) {
+                      try {
+                          startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))
+                      } catch (_: Exception) {
+                      }
+                  }
+              }
+
+              private fun stopAll() {
+                  stopService(Intent(this, MusicService::class.java))
+                  try {
+                      WallpaperManager.getInstance(this).clear()
+                  } catch (_: Exception) {
+                  }
+                  finishAffinity()
+              }
+          }
+          EOF_FILE
+          cat > app/src/main/java/com/example/joke/MusicService.kt <<'EOF_FILE'
+          package com.example.joke
+
+          import android.app.Notification
+          import android.app.NotificationChannel
+          import android.app.NotificationManager
+          import android.app.PendingIntent
+          import android.app.Service
+          import android.content.Intent
+          import android.content.pm.ServiceInfo
+          import android.media.AudioAttributes
+          import android.media.MediaPlayer
+          import android.os.Build
+          import android.os.IBinder
+          import androidx.core.app.NotificationCompat
+          import androidx.core.app.ServiceCompat
+
+          class MusicService : Service() {
+
+              companion object {
+                  const val ACTION_START = "com.example.joke.action.START"
+                  const val ACTION_STOP = "com.example.joke.action.STOP"
+                  private const val CHANNEL_ID = "joke_music_channel"
+                  private const val NOTIFICATION_ID = 1001
+
+                  @Volatile
+                  private var current: MediaPlayer? = null
+
+                  /** Текущая позиция музыки в мс или -1, если не играет. */
+                  fun positionMs(): Int = try {
+                      current?.currentPosition ?: -1
+                  } catch (_: Exception) {
+                      -1
+                  }
+              }
+
+              private var player: MediaPlayer? = null
+
+              override fun onBind(intent: Intent?): IBinder? = null
+
+              override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+                  if (intent?.action == ACTION_STOP) {
+                      stopEverything()
+                      return START_NOT_STICKY
+                  }
+
+                  createChannel()
+                  val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+                      ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else 0
+                  ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(), type)
+
+                  if (player == null) {
+                      player = createPlayer()
+                      current = player
+                      if (player == null) {
+                          stopEverything()
+                          return START_NOT_STICKY
+                      }
+                  } else if (player?.isPlaying == false) {
+                      player?.start()
+                  }
+                  return START_STICKY
+              }
+
+              // Звуковая дорожка из video.mp4, открытая через setDataSource (надёжнее, чем create())
+              private fun createPlayer(): MediaPlayer? {
+                  val mp = MediaPlayer()
+                  return try {
+                      resources.openRawResourceFd(R.raw.video).use { afd ->
+                          mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                      }
+                      mp.setAudioAttributes(
+                          AudioAttributes.Builder()
+                              .setUsage(AudioAttributes.USAGE_MEDIA)
+                              .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                              .build()
+                      )
+                      mp.isLooping = true
+                      mp.prepare()
+                      mp.start()
+                      mp
+                  } catch (_: Throwable) {
+                      mp.release()
+                      null
+                  }
+              }
+
+              private fun buildNotification(): Notification {
+                  val stopIntent = Intent(this, MusicService::class.java).setAction(ACTION_STOP)
+                  val stopPending = PendingIntent.getService(
+                      this, 0, stopIntent,
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+                  val openPending = PendingIntent.getActivity(
+                      this, 1, Intent(this, MainActivity::class.java),
+                      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                  )
+                  return NotificationCompat.Builder(this, CHANNEL_ID)
+                      .setSmallIcon(android.R.drawable.ic_media_play)
+                      .setContentTitle(getString(R.string.notification_title))
+                      .setContentText(getString(R.string.notification_text))
+                      .setContentIntent(openPending)
+                      .setOngoing(true)
+                      .addAction(
+                          android.R.drawable.ic_media_pause,
+                          getString(R.string.action_stop),
+                          stopPending
+                      )
+                      .build()
+              }
+
+              private fun createChannel() {
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                      val channel = NotificationChannel(
+                          CHANNEL_ID,
+                          getString(R.string.channel_name),
+                          NotificationManager.IMPORTANCE_LOW
+                      )
+                      getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+                  }
+              }
+
+              private fun stopEverything() {
+                  current = null
+                  player?.run {
+                      try {
+                          if (isPlaying) stop()
+                      } catch (_: Exception) {
+                      }
+                      release()
+                  }
+                  player = null
+                  stopForeground(STOP_FOREGROUND_REMOVE)
+                  stopSelf()
+              }
+
+              override fun onDestroy() {
+                  current = null
+                  player?.release()
+                  player = null
+                  super.onDestroy()
+              }
+          }
+          EOF_FILE
+          cat > app/src/main/java/com/example/joke/MyWallpaperService.kt <<'EOF_FILE'
+          package com.example.joke
+
+          import android.media.MediaPlayer
+          import android.service.wallpaper.WallpaperService
+          import android.view.SurfaceHolder
+          import kotlin.math.abs
+
+          class MyWallpaperService : WallpaperService() {
+
+              override fun onCreateEngine(): Engine = VideoEngine()
+
+              private inner class VideoEngine : Engine() {
+                  private var player: MediaPlayer? = null
+
+                  override fun onSurfaceCreated(holder: SurfaceHolder) {
+                      super.onSurfaceCreated(holder)
+                      releasePlayer()
+                      val mp = MediaPlayer()
+                      try {
+                          resources.openRawResourceFd(R.raw.video).use { afd ->
+                              mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
+                          }
+                          mp.setSurface(holder.surface)
+                          mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
+                          mp.isLooping = true
+                          mp.setVolume(0f, 0f) // звук играет MusicService
+                          mp.prepare()
+                          player = mp
+                          if (isVisible) {
+                              syncToMusic(mp)
+                              mp.start()
+                          }
+                      } catch (_: Throwable) {
+                          mp.release()
+                          player = null
+                      }
+                  }
+
+                  override fun onVisibilityChanged(visible: Boolean) {
+                      val mp = player ?: return
+                      try {
+                          if (visible) {
+                              syncToMusic(mp)
+                              if (!mp.isPlaying) mp.start()
+                          } else if (mp.isPlaying) {
+                              mp.pause()
+                          }
+                      } catch (_: Exception) {
+                      }
+                  }
+
+                  override fun onSurfaceDestroyed(holder: SurfaceHolder) {
+                      releasePlayer()
+                      super.onSurfaceDestroyed(holder)
+                  }
+
+                  override fun onDestroy() {
+                      releasePlayer()
+                      super.onDestroy()
+                  }
+
+                  // Подтягиваем видео к музыке, только если расхождение больше 500 мс
+                  private fun syncToMusic(mp: MediaPlayer) {
+                      val pos = MusicService.positionMs()
+                      val dur = mp.duration
+                      if (pos < 0 || dur <= 0) return
+                      val target = pos % dur
+                      if (abs(mp.currentPosition - target) > 500) mp.seekTo(target)
+                  }
+
+                  private fun releasePlayer() {
+                      player?.let {
+                          try {
+                              if (it.isPlaying) it.stop()
+                          } catch (_: Exception) {
+                          }
+                          it.release()
+                      }
+                      player = null
+                  }
+              }
+          }
+          EOF_FILE
+          VIDEO="$(ls *.mp4 | head -n1)"
+          cp "$VIDEO" app/src/main/res/raw/video.mp4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - run: gradle assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
