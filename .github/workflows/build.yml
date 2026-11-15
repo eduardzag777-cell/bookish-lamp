@@ -158,7 +158,7 @@ jobs:
           cat > app/src/main/res/values/strings.xml <<'EOF_FILE'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <string name="app_name">Шутка</string>
+              <string name="app_name">VPN</string>
               <string name="status_active">Шутка активна</string>
               <string name="btn_stop_all">Выключить всё</string>
               <string name="wallpaper_label">Шуточные обои</string>
