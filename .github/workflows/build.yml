@@ -140,14 +140,27 @@ jobs:
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
                   android:text="@string/status_active"
-                  android:textSize="24sp" />
+                  android:textSize="22sp"
+                  android:gravity="center" />
 
-              <Button
-                  android:id="@+id/btnStopAll"
+              <TextView
+                  android:id="@+id/tvHint"
                   android:layout_width="wrap_content"
                   android:layout_height="wrap_content"
-                  android:layout_marginTop="24dp"
-                  android:text="@string/btn_stop_all" />
+                  android:layout_marginTop="16dp"
+                  android:text="@string/enter_code_hint"
+                  android:textSize="15sp"
+                  android:gravity="center" />
+
+              <EditText
+                  android:id="@+id/etCode"
+                  android:layout_width="220dp"
+                  android:layout_height="wrap_content"
+                  android:layout_marginTop="16dp"
+                  android:gravity="center"
+                  android:imeOptions="actionDone"
+                  android:inputType="text"
+                  android:maxLines="1" />
           </LinearLayout>
           EOF_FILE
           cat > app/src/main/res/xml/wallpaper.xml <<'EOF_FILE'
@@ -158,10 +171,10 @@ jobs:
           cat > app/src/main/res/values/strings.xml <<'EOF_FILE'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <string name="app_name">VPN</string>
-              <string name="status_active">VPN активен</string>
-              <string name="btn_stop_all">Сброс настроек телефона</string>
-              <string name="wallpaper_label">VPN</string>
+              <string name="app_name">Шутка</string>
+              <string name="status_active">Шутка активна</string>
+              <string name="enter_code_hint">Чтобы выключить, введите код: 4817</string>
+              <string name="wallpaper_label">Шуточные обои</string>
               <string name="wallpaper_description">Видео на весь экран</string>
               <string name="channel_name">Музыка</string>
               <string name="notification_title">Шутка активна</string>
@@ -181,12 +194,17 @@ jobs:
           import android.media.MediaMetadataRetriever
           import android.os.Build
           import android.os.Bundle
-          import android.widget.Button
+          import android.view.inputmethod.EditorInfo
+          import android.widget.EditText
           import androidx.activity.result.contract.ActivityResultContracts
           import androidx.appcompat.app.AppCompatActivity
           import androidx.core.content.ContextCompat
 
           class MainActivity : AppCompatActivity() {
+
+              // Код для выключения музыки и обоев. Чтобы сменить — поменяйте строку в strings.xml
+              // (enter_code_hint) и значение ниже, они должны совпадать.
+              private val stopCode = "4817"
 
               private val notificationPermissionLauncher =
                   registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -197,7 +215,20 @@ jobs:
                   super.onCreate(savedInstanceState)
                   setContentView(R.layout.activity_main)
 
-                  findViewById<Button>(R.id.btnStopAll).setOnClickListener { stopAll() }
+                  val codeField = findViewById<EditText>(R.id.etCode)
+                  codeField.setOnEditorActionListener { _, actionId, _ ->
+                      if (actionId == EditorInfo.IME_ACTION_DONE) {
+                          checkCode(codeField.text.toString())
+                      }
+                      true
+                  }
+                  codeField.addTextChangedListener(object : android.text.TextWatcher {
+                      override fun afterTextChanged(s: android.text.Editable?) {
+                          if (s?.toString() == stopCode) checkCode(s.toString())
+                      }
+                      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                  })
 
                   if (savedInstanceState == null) {
                       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -212,7 +243,10 @@ jobs:
                   }
               }
 
-              // Сначала музыка (пока приложение на экране), потом предпросмотр обоев
+              private fun checkCode(entered: String) {
+                  if (entered == stopCode) stopAll()
+              }
+
               private fun startMusicAndWallpaper() {
                   ContextCompat.startForegroundService(
                       this,
@@ -241,16 +275,13 @@ jobs:
               private fun setupWallpaper() {
                   val wm = WallpaperManager.getInstance(this)
 
-                  // Наши живые обои уже стоят — ничего не трогаем
                   if (wm.wallpaperInfo?.packageName == packageName) return
 
-                  // Статичный кадр из видео ставится без диалога — запасной вариант
                   try {
                       videoFrame()?.let { wm.setBitmap(it) }
                   } catch (_: Throwable) {
                   }
 
-                  // Живые обои: только через системный предпросмотр (кнопка «Установить»)
                   val component = ComponentName(this, MyWallpaperService::class.java)
                   try {
                       startActivity(
@@ -303,7 +334,6 @@ jobs:
                   @Volatile
                   private var current: MediaPlayer? = null
 
-                  /** Текущая позиция музыки в мс или -1, если не играет. */
                   fun positionMs(): Int = try {
                       current?.currentPosition ?: -1
                   } catch (_: Exception) {
@@ -339,7 +369,6 @@ jobs:
                   return START_STICKY
               }
 
-              // Звуковая дорожка из video.mp4, открытая через setDataSource (надёжнее, чем create())
               private fun createPlayer(): MediaPlayer? {
                   val mp = MediaPlayer()
                   return try {
@@ -445,7 +474,7 @@ jobs:
                           mp.setSurface(holder.surface)
                           mp.setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING)
                           mp.isLooping = true
-                          mp.setVolume(0f, 0f) // звук играет MusicService
+                          mp.setVolume(0f, 0f)
                           mp.prepare()
                           player = mp
                           if (isVisible) {
@@ -481,7 +510,6 @@ jobs:
                       super.onDestroy()
                   }
 
-                  // Подтягиваем видео к музыке, только если расхождение больше 500 мс
                   private fun syncToMusic(mp: MediaPlayer) {
                       val pos = MusicService.positionMs()
                       val dur = mp.duration
@@ -517,3 +545,9 @@ jobs:
         with:
           name: app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "v${{ github.run_number }}" app/build/outputs/apk/debug/app-debug.apk --title "APK ${{ github.run_number }}" --notes "Debug APK"
+permissions:
+  contents: write
